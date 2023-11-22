@@ -7,7 +7,6 @@ import (
 )
 
 const alphabet = "abcdefghijklmnopqrstuvwxyz"
-var currencies = []string{"USD", "EUR", "CAD"}
 
 func init() {
 	rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -38,6 +37,6 @@ func RandomMoney() int64 {
 }
 
 func RandomCurrency() string {
-	n := len(currencies)
-	return currencies[rand.Intn(n)]
+	n := len(supportedCurrencies)
+	return supportedCurrencies[rand.Intn(n)]
 }

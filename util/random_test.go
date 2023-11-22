@@ -39,5 +39,5 @@ func TestRandomCurrency(t *testing.T) {
 	randomCurrency := RandomCurrency()
 
 	require.NotEmpty(t, randomCurrency)
-	require.Contains(t, currencies, randomCurrency)
+	require.Contains(t, supportedCurrencies, randomCurrency)
 }
