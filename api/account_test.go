@@ -12,14 +12,16 @@ import (
 	"net/http/httptest"
 	mockdb "simple_bank/db/mock"
 	db "simple_bank/db/sqlc"
+	"simple_bank/token"
 	"simple_bank/util"
 	"testing"
+	"time"
 )
 
-func createRandomAccount() db.Account {
+func createRandomAccount(owner string) db.Account {
 	return db.Account{
 		ID: util.RandomInt(1, 1000),
-		Owner: util.RandomOwner(),
+		Owner: owner,
 		Currency: util.RandomCurrency(),
 	}
 }
@@ -36,13 +38,15 @@ func requireBodyMatchesAccount(t *testing.T, account db.Account, body *bytes.Buf
 }
 
 func TestGetAccountAPI(t *testing.T) {
-	account := createRandomAccount()
+	user, _ := randomUser(t)
+	account := createRandomAccount(user.Username)
 
 	testCases := []struct{
 		name string
 		accountID int64
 		buildStubs func(store *mockdb.MockStore)
 		checkResponse func(t *testing.T, recorder *httptest.ResponseRecorder)
+		setupAuth func(t *testing.T, request *http.Request, tokenMaker token.Maker)
 	}{
 		{
 			name: "OK",
@@ -57,6 +61,9 @@ func TestGetAccountAPI(t *testing.T) {
 				require.Equal(t, http.StatusOK, recorder.Code)
 				requireBodyMatchesAccount(t, account, recorder.Body)
 			},
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.Username, time.Minute)
+			},
 		},
 		{
 			name: "NotFound",
@@ -69,6 +76,9 @@ func TestGetAccountAPI(t *testing.T) {
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusNotFound, recorder.Code)
+			},
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.Username, time.Minute)
 			},
 		},
 		{
@@ -83,6 +93,9 @@ func TestGetAccountAPI(t *testing.T) {
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusInternalServerError, recorder.Code)
 			},
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.Username, time.Minute)
+			},
 		},
 		{
 			name: "InvalidID",
@@ -94,6 +107,9 @@ func TestGetAccountAPI(t *testing.T) {
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusBadRequest, recorder.Code)
+			},
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.Username, time.Minute)
 			},
 		},
 	}
@@ -115,6 +131,7 @@ func TestGetAccountAPI(t *testing.T) {
 			request, err := http.NewRequest(http.MethodGet, url, nil)
 			require.NoError(t, err)
 
+			tc.setupAuth(t, request, server.tokenMaker)
 			server.router.ServeHTTP(recorder, request)
 
 			tc.checkResponse(t, recorder)
