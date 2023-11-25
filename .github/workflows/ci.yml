@@ -1,4 +1,4 @@
-name: ci-test
+name: Continous Integration
 
 on:
   push:
